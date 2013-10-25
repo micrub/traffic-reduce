@@ -17,35 +17,59 @@ package com.cloudera.traffic;
  * limitations under the License.
  */
 
-import java.io.IOException;
-
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
-import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
 
-public class AveragerRunner {
-  public static void main(String[] args) throws IOException, ClassNotFoundException,
-      InterruptedException {
-    Configuration conf = new Configuration();
-    String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
-    Job job = new Job(conf);
-    job.setJarByClass(AveragerRunner.class);
-    job.setMapperClass(AveragerMapper.class);
-    job.setReducerClass(AveragerReducer.class);
-    job.setCombinerClass(AveragerReducer.class);
-    job.setMapOutputKeyClass(Text.class);
-    job.setMapOutputValueClass(AverageWritable.class);
-    job.setInputFormatClass(TextInputFormat.class);
-    
-    FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
-    FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
 
-    job.waitForCompletion(true);
-  }
+public class AveragerRunner extends Configured implements Tool {
+
+	private AveragerRunner() {
+	} //
+
+	public int run(String[] args) throws Exception {
+		
+		if (args.length < 2) {
+			System.out.println("<inDir> <outDir>");
+			ToolRunner.printGenericCommandUsage(System.out);
+			return 2;
+		}
+
+		Configuration conf = getConf();
+		Job grepJob = Job.getInstance(conf);
+
+		try {
+
+			grepJob.setJobName("averager");
+
+			FileInputFormat.setInputPaths(grepJob, new Path(args[0]));
+			FileOutputFormat.setOutputPath(grepJob, new Path(args[1]));
+			
+			grepJob.setJarByClass(AveragerRunner.class);
+			grepJob.setMapperClass(AveragerMapper.class);
+			grepJob.setReducerClass(AveragerReducer.class);
+			grepJob.setCombinerClass(AveragerReducer.class);
+			grepJob.setMapOutputKeyClass(Text.class);
+			grepJob.setMapOutputValueClass(AverageWritable.class);
+			grepJob.setInputFormatClass(TextInputFormat.class);
+			
+			grepJob.waitForCompletion(true);
+
+		} finally {
+		}
+		return 0;
+	}
+
+	public static void main(String[] args) throws Exception {
+		int res = ToolRunner.run(new Configuration(), new AveragerRunner(),
+				args);
+		System.exit(res);
+	}
 }
